@@ -98,6 +98,11 @@ func (m *Message) clear() {
 	m.subs = nil
 }
 
+
+func (m *Message) Since() time.Duration {
+	return time.Since(m.st)
+}
+
 // TotalDur will return the total duration of a command.
 func (m *Message) TotalDur() time.Duration {
 	return m.et.Sub(m.st)

@@ -10,6 +10,7 @@ import (
 	perr "github.com/pkg/errors"
 
 	"overlord/pkg/hashkit"
+	"overlord/pkg/log"
 )
 
 const (
@@ -146,6 +147,10 @@ func (mp *msgPipe) pipe() {
 			mp.count++
 			m.MarkWrite()
 			err = nc.Write(m)
+			since := m.Since()
+			if since > time.Millisecond * 10 {
+				log.Infof("slowlog occur write %dms", since.Nanoseconds() / 1000000)
+			}
 			m = nil
 			if err != nil {
 				goto MEND
@@ -169,6 +174,10 @@ func (mp *msgPipe) pipe() {
 		}
 	MEND:
 		for i := 0; i < mp.count; i++ {
+			since := mp.batch[i].Since()
+			if since > time.Millisecond * 10 {
+				log.Infof("slowlog occur write %dms", since.Nanoseconds() / 1000000)
+			}
 			msg := mp.batch[i]
 			msg.WithError(err) // NOTE: maybe err is nil
 			if prom.On {
