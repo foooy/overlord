@@ -96,14 +96,21 @@ func (h *Handler) handle() {
 	)
 	messages = h.allocMaxConcurrent(wg, messages, len(msgs))
 	for {
+		// 0. init marker
+		st := time.Now()
+
 		// 1. read until limit or error
 		if msgs, err = h.pc.Decode(messages); err != nil {
 			h.deferHandle(messages, err)
 			return
 		}
+		dt := time.Now()
+
 		// 2. send to cluster
 		h.forwarder.Forward(msgs)
 		wg.Wait()
+		wt := time.Now()
+
 		// 3. encode
 		for _, msg := range msgs {
 			if err = h.pc.Encode(msg); err != nil {
@@ -116,18 +123,31 @@ func (h *Handler) handle() {
 				prom.ProxyTime(h.cc.Name, msg.Request().CmdString(), int64(msg.TotalDur()/time.Microsecond))
 			}
 		}
+		et := time.Now()
 		if err = h.pc.Flush(); err != nil {
 			h.deferHandle(messages, err)
 			return
 		}
 
+		ft := time.Now()
 
 		if h.slowerThan != 0 {
+			isSlower := false
 			for _, msg := range msgs {
 				if msg.TotalDur() > h.slowerThan {
+					isSlower = true
 					h.slog.Record(msg.Slowlog())
 				}
 				msg.ResetSubs()
+			}
+			if isSlower {
+				log.Infof(
+					"bad time decode_time=%dus wait_time=%dus encode_time=%dus flush_time=%dus",
+					dt.Sub(st).Nanoseconds()/1000000,
+					wt.Sub(st).Nanoseconds()/1000000,
+					et.Sub(st).Nanoseconds()/1000000,
+					ft.Sub(st).Nanoseconds()/1000000,
+				)
 			}
 		}
 
