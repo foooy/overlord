@@ -108,6 +108,7 @@ func (h *Handler) handle() {
 
 		// 2. send to cluster
 		h.forwarder.Forward(msgs)
+		fwt := time.Now()
 		wg.Wait()
 		wt := time.Now()
 
@@ -142,8 +143,9 @@ func (h *Handler) handle() {
 			}
 			if isSlower {
 				log.Infof(
-					"bad time decode_time=%dus wait_time=%dus encode_time=%dus flush_time=%dus",
+					"bad time decode_time=%dus forward_time=%s wait_time=%dus encode_time=%dus flush_time=%dus",
 					dt.Sub(st).Nanoseconds()/1000000,
+					fwt.Sub(st).Nanoseconds()/1000000,
 					wt.Sub(st).Nanoseconds()/1000000,
 					et.Sub(st).Nanoseconds()/1000000,
 					ft.Sub(st).Nanoseconds()/1000000,
